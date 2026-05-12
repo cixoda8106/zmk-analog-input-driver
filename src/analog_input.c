@@ -17,7 +17,7 @@
 LOG_MODULE_REGISTER(ANALOG_INPUT, CONFIG_ANALOG_INPUT_LOG_LEVEL);
 
 #include <zmk/drivers/analog_input.h>
-
+       int16_t to_report = 0;
 static int analog_input_report_data(const struct device *dev) {
     struct analog_input_data *data = dev->data;
     const struct analog_input_config *config = dev->config;
@@ -65,7 +65,7 @@ static int analog_input_report_data(const struct device *dev) {
 #endif
         }
 
-        int16_t to_report = 0;
+ 
         int32_t raw = data->as_buff[i];
         int32_t mv = raw;
         adc_raw_to_millivolts(adc_ref_internal(adc), ADC_GAIN_1_6, as->resolution, &mv);
