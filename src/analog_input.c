@@ -65,6 +65,7 @@ static int analog_input_report_data(const struct device *dev) {
 #endif
         }
 
+        int16_t to_report = 0;
         int32_t raw = data->as_buff[i];
         int32_t mv = raw;
         adc_raw_to_millivolts(adc_ref_internal(adc), ADC_GAIN_1_6, as->resolution, &mv);
@@ -89,7 +90,7 @@ static int analog_input_report_data(const struct device *dev) {
         }
 
         if (ch_cfg.invert) v *= -1;
-        v = (int16_t)((v * ch_cfg.scale_multiplier) / ch_cfg.scale_divisor);
+        v = v * ch_cfg.scale_multiplier;
 
         if (ch_cfg.report_on_change_only) {
             // track raw value to compare until next report interval
@@ -97,9 +98,8 @@ static int analog_input_report_data(const struct device *dev) {
         }
         else {
             // accumulate delta until report in next iteration
-            int32_t delta = data->delta[i];
-            int32_t dv = delta + v;
-            data->delta[i] = dv;
+            int32_t total_delta = data->delta[i];
+            to_report = (int16_t)(total_delta / ch_cfg.scale_divisor); 
         }
     }
 
@@ -155,7 +155,12 @@ static int analog_input_report_data(const struct device *dev) {
 #if IS_ENABLED(CONFIG_ANALOG_INPUT_LOG_DBG_REPORT)
             LOG_DBG("input_report %u rv: %d  e:%d  c:%d", i, dv, ch_cfg.evt_type, ch_cfg.input_code);
 #endif
-            input_report(dev, ch_cfg.evt_type, ch_cfg.input_code, dv, i == idx_to_sync, K_NO_WAIT);
+            
+if (to_report != 0) {
+    input_report(dev, ch_cfg.evt_type, ch_cfg.input_code, to_report, i == idx_to_sync, K_NO_WAIT);
+    // ВАЖНО: вычитаем только то, что отправили, остаток сохраняем для следующего раза
+    data->delta[i] -= (to_report * ch_cfg.scale_divisor);
+}
         }
     }
     return 0;
